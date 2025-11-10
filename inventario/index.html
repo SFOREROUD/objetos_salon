@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Inventario Automático del Salón de Cómputo</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.8/dist/tf-tflite.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            background: #1a3a52;
+            color: white;
+            padding: 30px 40px;
+            border-bottom: 4px solid #2c5f7f;
+        }
+
+        .header h1 {
+            font-size: 1.8em;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .header .institution {
+            font-size: 0.95em;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .header .course {
+            font-size: 0.85em;
+            opacity: 0.8;
+        }
+
+        .author-info {
+            background: #f8f9fa;
+            padding: 15px 40px;
+            border-bottom: 1px solid #dee2e6;
+            font-family: 'Arial', sans-serif;
+            font-size: 0.9em;
+        }
+
+        .author-info strong {
+            color: #1a3a52;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section-title {
+            font-size: 1.3em;
+            color: #1a3a52;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #1a3a52;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .info-panel {
+            background: #f8f9fa;
+            border-left: 4px solid #1a3a52;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .info-panel h3 {
+            color: #1a3a52;
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .classes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .class-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: white;
+            border: 1px solid #dee2e6;
+        }
+
+        .class-id {
+            width: 35px;
+            height: 35px;
+            background: #0052cc;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .upload-section {
+            border: 2px dashed #1a3a52;
+            padding: 40px;
+            text-align: center;
+            background: #fafbfc;
+            margin-bottom: 25px;
+        }
+
+        .upload-section h3 {
+            color: #1a3a52;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .upload-section.dragover {
+            background: #e9ecef;
+            border-color: #0052cc;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            font-size: 1em;
+            cursor: pointer;
+            font-family: 'Arial', sans-serif;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #1a3a52;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2c5f7f;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+            display: none;
+            margin: 20px auto;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #218838;
+        }
+
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .status-message {
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 4px solid;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            border-color: #0c5460;
+            color: #0c5460;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            border-color: #155724;
+            color: #155724;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            border-color: #721c24;
+            color: #721c24;
+        }
+
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #1a3a52;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .images-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .image-panel h4 {
+            color: #1a3a52;
+            margin-bottom: 10px;
+            font-size: 1em;
+            font-family: 'Arial', sans-serif;
+        }
+
+        canvas {
+            width: 100%;
+            border: 1px solid #dee2e6;
+            display: block;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-family: 'Arial', sans-serif;
+        }
+
+        table th {
+            background: #1a3a52;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 500;
+        }
+
+        table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        table tr:hover {
+            background: #f8f9fa;
+        }
+
+        table tbody tr:last-child {
+            font-weight: bold;
+            background: #e9ecef;
+        }
+
+        .count-value {
+            background: #1a3a52;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 3px;
+            font-weight: bold;
+            display: inline-block;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 20px 40px;
+            border-top: 1px solid #dee2e6;
+            text-align: center;
+            font-family: 'Arial', sans-serif;
+            font-size: 0.85em;
+            color: #6c757d;
+        }
+
+        @media (max-width: 768px) {
+            .images-container {
+                grid-template-columns: 1fr;
+            }
+            .classes-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Sistema de Inventario Automático del Salón de Cómputo</h1>
+            <div class="institution">Maestría en Ciencias de la Computación y las Comunicaciones</div>
+            <div class="course">BIG DATA - Módulo de Redes Convolucionales | Prof. Gerardo Muñoz</div>
+        </div>
+
+        <div class="author-info">
+            <strong>Estudiante:</strong> Sebastian Forero |
+            <strong>Código:</strong> 20242595001 |
+            <strong>Fecha:</strong> Noviembre 2024
+        </div>
+
+        <div class="content">
+            <div class="section">
+                <div class="info-panel">
+                    <h3>Objetivos del Sistema</h3>
+                    <p style="font-family: Arial, sans-serif;">Este sistema implementa un modelo de Deep Learning (SSD MobileNetV2) entrenado para detectar y contabilizar automáticamente los objetos presentes en el salón de cómputo. El modelo se ejecuta completamente de forma local utilizando TensorFlow Lite.</p>
+                </div>
+
+                <div class="info-panel">
+                    <h3>Clases de Objetos Detectables</h3>
+                    <div class="classes-grid">
+                        <div class="class-item">
+                            <div class="class-id">0</div>
+                            <span>CPU</span>
+                        </div>
+                        <div class="class-item">
+                            <div class="class-id">1</div>
+                            <span>Mesa</span>
+                        </div>
+                        <div class="class-item">
+                            <div class="class-id">2</div>
+                            <span>Mouse</span>
+                        </div>
+                        <div class="class-item">
+                            <div class="class-id">3</div>
+                            <span>Pantalla</span>
+                        </div>
+                        <div class="class-item">
+                            <div class="class-id">4</div>
+                            <span>Silla</span>
+                        </div>
+                        <div class="class-item">
+                            <div class="class-id">5</div>
+                            <span>Teclado</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="status"></div>
+
+            <div class="section">
+                <h2 class="section-title">1. Cargar Imagen del Salón</h2>
+                <div class="upload-section" id="uploadArea">
+                    <h3>Seleccione una imagen del salón de cómputo</h3>
+                    <p style="margin: 15px 0; color: #6c757d; font-family: Arial, sans-serif;">Formatos soportados: JPG, PNG</p>
+                    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                        Examinar...
+                    </button>
+                    <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+                </div>
+
+                <button class="btn btn-success" id="detectBtn" onclick="detectObjects()">
+                    Ejecutar Detección de Objetos
+                </button>
+            </div>
+
+            <div class="section results-section" id="resultsSection">
+                <h2 class="section-title">2. Resultados de la Detección</h2>
+
+                <div class="images-container">
+                    <div class="image-panel">
+                        <h4>Imagen Original</h4>
+                        <canvas id="originalCanvas"></canvas>
+                    </div>
+                    <div class="image-panel">
+                        <h4>Objetos Detectados (Bounding Boxes en Azul)</h4>
+                        <canvas id="resultCanvas"></canvas>
+                    </div>
+                </div>
+
+                <h3 class="section-title" style="font-size: 1.1em;">Conteo de Objetos Detectados</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Clase de Objeto</th>
+                                <th>Cantidad Detectada</th>
+                            </tr>
+                        </thead>
+                        <tbody id="countsTable">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Sistema de Inventario Automático | Modelo: SSD MobileNetV2 + TFLite (16 MB) |
+            Detección con Sliding Window + NMS | Entrenamiento: Transfer Learning + Pseudo-labeling
+        </div>
+    </div>
+
+    <script src="js/detector_salon.js"></script>
+</body>
+</html>

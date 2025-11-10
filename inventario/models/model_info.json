@@ -1,0 +1,41 @@
+{
+  "nombre_modelo": "detector_salon.tflite",
+  "arquitectura": "SSD MobileNetV2",
+  "input_size": 320,
+  "formato_entrada": "[1, 320, 320, 3]",
+  "outputs": {
+    "bbox": "[1, 4] - coordenadas normalizadas [ymin, xmin, ymax, xmax]",
+    "class": "[1, 6] - probabilidades de cada clase",
+    "confidence": "[1, 1] - score de confianza de detección"
+  },
+  "clases": [
+    "cpu",
+    "mesa",
+    "mouse",
+    "pantalla",
+    "silla",
+    "teclado"
+  ],
+  "num_clases": 6,
+  "tamaño_mb": 16.0,
+  "metodo_entrenamiento": "Transfer Learning + Pseudo-labeling",
+  "dataset": {
+    "imagenes_totales": 190,
+    "detecciones_totales": 752,
+    "fuente_etiquetas": "SSD MobileNet COCO preentrenado",
+    "split": "80% train / 20% validation"
+  },
+  "tecnicas_usadas": [
+    "Etiquetado automático con SSD COCO",
+    "Transfer learning desde MobileNetV2 ImageNet",
+    "Fine-tuning en 2 fases",
+    "Data augmentation (flip horizontal)",
+    "Early stopping",
+    "Learning rate scheduling"
+  ],
+  "estudiante": "Sebastian Forero",
+  "codigo": "20242595001",
+  "maestria": "Ciencias de la Computación y las Comunicaciones",
+  "curso": "BIG DATA - Redes Convolucionales",
+  "profesor": "Gerardo Muñoz"
+}
